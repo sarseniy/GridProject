@@ -41,8 +41,6 @@ public:
 		data_ = new TipicalHandler<T>(ref.as<T>());
 	}
 
-
-
 	/*Any& operator= (Any const& ref) {
 		delete this->data_;
 		this->data_ = ref.data_;
@@ -69,7 +67,7 @@ public:
 
 	template <typename T>
 	void replace(const Any& ref) {
-		delete[] data_;
+		delete data_;
 		data_ = new TipicalHandler<T>(ref.as<T>());
 	}
 
@@ -81,13 +79,13 @@ public:
 
 	template <typename T>
 	T& as() {
-		auto w = dynamic_cast<TipicalHandler<std::decay_t<T>>&>(*data_);
+		auto& w = dynamic_cast<TipicalHandler<std::decay_t<T>>&>(*data_);
 		return *static_cast<std::decay_t<T>*>(w.data());
 	}
 
 	template <typename T>
 	T const& as() const {
-		auto w = dynamic_cast<TipicalHandler<std::decay_t<T>> const&>(*data_);
+		auto const& w = dynamic_cast<TipicalHandler<std::decay_t<T>> const&>(*data_);
 		return *static_cast<std::decay_t<T> const*>(w.data());
 	}
 
@@ -164,6 +162,23 @@ public:
 		return *this;
 	}
 
+	Grid& make_subgrid(int x_idx, int y_idx, int x_sub_size, int y_sub_size) {
+		auto& old_val = (*this)(x_idx, y_idx);
+		Grid<T> tmp(x_sub_size, y_sub_size);
+		tmp = old_val;
+//		delete memory[x_idx * x_size + y_idx];
+//		memory[x_idx * x_size + y_idx] = new Grid<T>(x_sub_size, y_sub_size);
+		/*for (size_t i = 0; i < x_sub_size; i++)
+		{
+			for (size_t j = 0; j < y_sub_size; j++)
+			{
+				memory[x_idx * x_size + y_idx](i, j).replace<T>((T)0);
+			}
+		}*/
+		memory[x_idx * x_size + y_idx].replace<T>(tmp);
+		return *this;
+	}
+
 private:
 	Any* memory;
 	size_t x_size, y_size;
@@ -219,6 +234,8 @@ int main()
 	Grid<double> third(5, 5);
 	third = 10;
 	second = third;
+
+	second.make_subgrid(1, 1, 5, 5);
 
 
 	/*char* f = new char[3];
