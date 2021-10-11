@@ -35,6 +35,14 @@ public:
 	Any(T value) : data_(new TipicalHandler<T>(value)) 
 	{}
 
+	template <typename T>
+	Any(const Any& ref) {
+		delete[] data_;
+		data_ = new TipicalHandler<T>(ref.as<T>());
+	}
+
+
+
 	/*Any& operator= (Any const& ref) {
 		delete this->data_;
 		this->data_ = ref.data_;
@@ -60,7 +68,13 @@ public:
 	}*/
 
 	template <typename T>
-	void replace(T value) {
+	void replace(const Any& ref) {
+		delete[] data_;
+		data_ = new TipicalHandler<T>(ref.as<T>());
+	}
+
+	template <typename T>
+	void replace(const T& value) {
 		delete data_;
 		data_ = new TipicalHandler<T>(value);
 	}
@@ -96,7 +110,7 @@ public:
 		memory = new Any [x_size * y_size];
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i].as<T>() = ref.memory[i].as<T>();
+			memory[i].replace<T>(ref.memory[i]);
 		}
 	}
 
@@ -117,7 +131,7 @@ public:
 		memory = new Any[x_size * y_size];
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i].as<T>() = ref.memory[i].as<T>();
+			memory[i].replace<T>(ref.memory[i]);
 		}
 		return *this;
 	}
@@ -145,7 +159,7 @@ public:
 	Grid& operator=(T value) {
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i].as<T>() = (T)value;
+			memory[i].replace(value);
 		}
 		return *this;
 	}
@@ -159,9 +173,7 @@ template <typename T>
 std::istream& operator>>(std::istream& f, Grid<T>& g) {
 	for (size_t i = 0; i < g.get_xsize() * g.get_ysize(); i++)
 	{
-		T a;
-		f >> a;
-		g[i] = a;
+		f >> g(i / g.get_ysize(), i % g.get_ysize());
 	}
 	return f;
 }
