@@ -52,12 +52,12 @@ public:
 		delete data_;
 	}
 
-	template <typename T>
+	/*template <typename T>
 	Any& operator=(T value)
 	{
 		this->replace<T>(value);
 		return *this;
-	}
+	}*/
 
 	template <typename T>
 	void replace(T value) {
@@ -67,14 +67,14 @@ public:
 
 	template <typename T>
 	T& as() {
-		auto w = dynamic_cast<TipicalHandler<T>&>(*data_);
-		return *static_cast<T*>(w.data());
+		auto w = dynamic_cast<TipicalHandler<std::decay_t<T>>&>(*data_);
+		return *static_cast<std::decay_t<T>*>(w.data());
 	}
 
 	template <typename T>
 	T const& as() const {
-		auto w = dynamic_cast<TipicalHandler<T> const&>(*data_);
-		return *static_cast<T const*>(w.data());
+		auto w = dynamic_cast<TipicalHandler<std::decay_t<T>> const&>(*data_);
+		return *static_cast<std::decay_t<T> const*>(w.data());
 	}
 
 private:
@@ -88,7 +88,7 @@ public:
 		memory = new Any [x_size * y_size];
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i] = (T)0;
+			memory[i].replace((T)0);
 		}
 	}
 	
@@ -96,7 +96,7 @@ public:
 		memory = new Any [x_size * y_size];
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i] = ref.memory[i].as<T>();
+			memory[i].as<T>() = ref.memory[i].as<T>();
 		}
 	}
 
@@ -117,7 +117,7 @@ public:
 		memory = new Any[x_size * y_size];
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i] = ref.memory[i].as<T>();
+			memory[i].as<T>() = ref.memory[i].as<T>();
 		}
 		return *this;
 	}
@@ -145,7 +145,7 @@ public:
 	Grid& operator=(T value) {
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i] = value;
+			memory[i].as<T>() = (T)value;
 		}
 		return *this;
 	}
