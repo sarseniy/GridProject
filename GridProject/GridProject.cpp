@@ -12,9 +12,9 @@ public:
 };
 
 template <typename T>
-class TipicalHandler : public Handler {
+class TypicalHandler : public Handler {
 public:
-	TipicalHandler(T value) : value(value)
+	TypicalHandler(T value) : value(value)
 	{}
 
 	void* data() override {
@@ -39,13 +39,13 @@ public:
 	{}
 
 	template <typename T>
-	Any(T value) : data_(new TipicalHandler<T>(value)) 
+	Any(T value) : data_(new TypicalHandler<T>(value)) 
 	{}
 
 	template <typename T>
 	Any(const Any& ref) {
 		delete[] data_;
-		data_ = new TipicalHandler<T>(ref.as<T>());
+		data_ = new TypicalHandler<T>(ref.as<T>());
 	}
 
 	~Any() {
@@ -55,24 +55,24 @@ public:
 	template <typename T>
 	void replace(const Any& ref) {
 		delete data_;
-		data_ = new TipicalHandler<T>(ref.as<T>());
+		data_ = new TypicalHandler<T>(ref.as<T>());
 	}
 
 	template <typename T>
 	void replace(const T& value) {
 		delete data_;
-		data_ = new TipicalHandler<T>(value);
+		data_ = new TypicalHandler<T>(value);
 	}
 
 	template <typename T>
 	T& as() {
-		auto& w = dynamic_cast<TipicalHandler<std::decay_t<T>>&>(*data_);
+		auto& w = dynamic_cast<TypicalHandler<std::decay_t<T>>&>(*data_);
 		return *static_cast<std::decay_t<T>*>(w.data());
 	}
 
 	template <typename T>
 	T const& as() const {
-		auto const& w = dynamic_cast<TipicalHandler<std::decay_t<T>> const&>(*data_);
+		auto const& w = dynamic_cast<TypicalHandler<std::decay_t<T>> const&>(*data_);
 		return *static_cast<std::decay_t<T> const*>(w.data());
 	}
 
@@ -134,6 +134,9 @@ public:
 	}
 
 	T& operator()(size_t x_idx, size_t y_idx) {
+		if (this->is_subgrid(x_idx, y_idx)) {
+			return memory[0].as<T>(); // UNDEFINED BEHAVIOUR
+		}
 		return memory[x_idx * y_size + y_idx].as<T>();
 	}
 
@@ -148,7 +151,13 @@ public:
 	Grid& operator=(T value) {
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i].replace(value);
+			if (!this->is_subgrid(i / y_size, i % y_size)) {
+				memory[i].replace(value);
+			}
+			else
+			{
+				memory[i].as<Grid<T>>() = value;
+			}
 		}
 		return *this;
 	}
