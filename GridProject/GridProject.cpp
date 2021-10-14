@@ -1,10 +1,12 @@
 ﻿#include <iostream>
 #include <string>
+#include <typeinfo>
 
 class Handler {
 public:
 	virtual void* data() = 0;
 	virtual void const* data() const = 0;
+	virtual std::type_info const& get_type() const = 0;
 	virtual ~Handler()
 	{}
 };
@@ -22,6 +24,11 @@ public:
 	void const* data() const override {
 		return static_cast<void const*>(&value);
 	}
+
+	std::type_info const& get_type() const override {
+		return typeid(value);
+	}
+
 private:
 	T value;
 };
@@ -41,29 +48,9 @@ public:
 		data_ = new TipicalHandler<T>(ref.as<T>());
 	}
 
-	/*Any& operator= (Any const& ref) {
-		delete this->data_;
-		this->data_ = ref.data_;
-		return *this;
-	}
-
-	template <typename T>
-	Any& operator= (T const& ref) {
-		delete this->data_;
-		this->data_ = new TipicalHandler<T>(ref);
-		return *this;
-	}*/
-
 	~Any() {
 		delete data_;
 	}
-
-	/*template <typename T>
-	Any& operator=(T value)
-	{
-		this->replace<T>(value);
-		return *this;
-	}*/
 
 	template <typename T>
 	void replace(const Any& ref) {
@@ -87,6 +74,11 @@ public:
 	T const& as() const {
 		auto const& w = dynamic_cast<TipicalHandler<std::decay_t<T>> const&>(*data_);
 		return *static_cast<std::decay_t<T> const*>(w.data());
+	}
+
+	template<typename T>
+	bool contains() const {
+		return typeid(T) == data_->get_type();
 	}
 
 private:
@@ -134,7 +126,10 @@ public:
 		return *this;
 	}
 
-	T const& operator()(size_t x_idx, size_t y_idx) const {
+	T operator()(size_t x_idx, size_t y_idx) const {
+		if (this->is_subgrid(x_idx, y_idx)) {
+			return memory[x_idx * y_size + y_idx].as<Grid<T>>().average();
+		}
 		return memory[x_idx * y_size + y_idx].as<T>();
 	}
 
@@ -162,24 +157,45 @@ public:
 		return *this;
 	}
 
-	Grid& make_subgrid(int x_idx, int y_idx, int x_sub_size, int y_sub_size) {
-		auto& old_val = (*this)(x_idx, y_idx);
+	Grid& make_subgrid(size_t x_idx, size_t y_idx, size_t x_sub_size, size_t y_sub_size) {
+		auto old_val = this->is_subgrid(x_idx, y_idx) ? (T)0 : (*this)(x_idx, y_idx);
 		Grid<T> tmp(x_sub_size, y_sub_size);
 		tmp = old_val;
-//		delete memory[x_idx * x_size + y_idx];
-//		memory[x_idx * x_size + y_idx] = new Grid<T>(x_sub_size, y_sub_size);
-		/*for (size_t i = 0; i < x_sub_size; i++)
-		{
-			for (size_t j = 0; j < y_sub_size; j++)
-			{
-				memory[x_idx * x_size + y_idx](i, j).replace<T>((T)0);
-			}
-		}*/
 		memory[x_idx * x_size + y_idx].replace<Grid<T>>(tmp);
 		return *this;
 	}
 
+	Grid& collapse_subgrid(size_t x_idx, size_t y_idx) {
+		if (!this->is_subgrid(x_idx, y_idx))
+		{
+			return *this;
+		}
+		memory[x_idx * y_size + y_idx].replace<T>(memory[x_idx * y_size + y_idx].as<Grid<T>>().average());
+		return *this;
+	}
+
+	Grid& get_subgrid(size_t x_idx, size_t y_idx) {
+		return memory[x_idx * y_size + y_idx].as<Grid<T>>();
+	}
+
+	Grid const& get_subgrid(size_t x_idx, size_t y_idx) const {
+		return memory[x_idx * y_size + y_idx].as<Grid<T>>();
+	}
+
+	bool is_subgrid(size_t x_idx, size_t y_idx) const {
+		return memory[y_size * x_idx + y_idx].contains<Grid<T>>();
+	}
+
 private:
+	T average() {
+		T sum = 0;
+		for (size_t i = 0; i < x_size * y_size; i++)
+		{
+			sum += (*this)(i / y_size, i % y_size);
+		}
+		return sum / (T)(x_size * y_size);
+	}
+
 	Any* memory;
 	size_t x_size, y_size;
 };
@@ -237,26 +253,12 @@ int main()
 
 	second.make_subgrid(1, 1, 5, 5);
 
+	std::cout << second.is_subgrid(1, 1) << '\n';
 
-	/*char* f = new char[3];
-	f[0] = 'H';
-	f[1] = 'i';
-	f[2] = '\0';
+	second.make_subgrid(1, 1, 5, 5);
+	second.collapse_subgrid(1, 1);
 
-	Any num(36);
-	Any str(f);
-	Any fact(true);
-
-	std::cout << num.as<int>() << ' ' << str.as<char*>() << ' ' << fact.as<bool>();
-
-	Any cls(foo{});
-	cls.as<foo>().print();
-
-	Any const& rcls = cls;
-	rcls.as<foo>().print();
-
-
-	delete[] f;*/
+	std::cout << second.is_subgrid(1, 1) << '\n';
 
 	return 0;
 }
