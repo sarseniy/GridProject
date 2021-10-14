@@ -145,10 +145,6 @@ public:
 		return y_size;
 	}
 
-	Any& operator[](size_t i) {
-		return memory[i];
-	}
-
 	Grid& operator=(T value) {
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
@@ -161,7 +157,7 @@ public:
 		auto old_val = this->is_subgrid(x_idx, y_idx) ? (T)0 : (*this)(x_idx, y_idx);
 		Grid<T> tmp(x_sub_size, y_sub_size);
 		tmp = old_val;
-		memory[x_idx * x_size + y_idx].replace<Grid<T>>(tmp);
+		memory[x_idx * y_size + y_idx].replace<Grid<T>>(tmp);
 		return *this;
 	}
 
@@ -183,7 +179,7 @@ public:
 	}
 
 	bool is_subgrid(size_t x_idx, size_t y_idx) const {
-		return memory[y_size * x_idx + y_idx].contains<Grid<T>>();
+		return memory[x_idx * y_size + y_idx].contains<Grid<T>>();
 	}
 
 private:
@@ -239,6 +235,7 @@ int main()
 	Grid<double> my_grid(4, 3);
 	std::cout << my_grid;
 	my_grid = 8;
+	my_grid(2, 0) = 123;
 	std::cout << my_grid;
 
 	std::cin >> my_grid;
