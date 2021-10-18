@@ -228,6 +228,103 @@ std::ostream& operator<<(std::ostream& f, Grid<T> const& g) {
 	return f;
 }
 
+class Error
+{
+public:
+	void virtual perr() = 0;
+};
+
+class ConstructorAndIOSError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with Constructor or IOS\n";
+	}
+};
+
+class CopyError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with Copy\n";
+	}
+};
+
+class SubgridError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with Subgrid\n";
+	}
+};
+
+void testConstructorAndIOS() {
+	bool flag = true;
+	Grid<double> a(2, 2);
+	a = 9;
+	a(1, 1) = 98.56;
+	if (a(0, 0) != 9 or a(1, 1) != 98.56) flag = false;
+
+	Grid<double> b(1, 2);
+	std::cin >> b;
+	double* b_ = new double[2];
+	for (size_t i = 0; i < 2; i++)
+	{
+		std::cin >> b_[i];
+	}
+	if (b(0, 0) != b_[0] or b(0, 1) != b_[1]) flag = false;
+	delete[] b_;
+
+	ConstructorAndIOSError err;
+	if (!flag) throw err;
+}
+
+void testCopy() {
+	bool flag = true;
+
+	Grid<double> a(2, 2);
+	a = 9;
+	a(1, 1) = 98.56;
+
+	Grid<double> c = a;
+	if (c(0, 0) != 9 or c(1, 1) != 98.56 or c(1, 0) != 9) flag = false;
+
+	Grid<double> b(1, 2);
+	b = 6;
+	a = b;
+	if (b(0, 0) != a(0, 0) or b(0, 1) != a(0, 1) or b.get_xsize() != a.get_xsize()) flag = false;
+
+	CopyError err;
+	if (!flag) throw err;
+}
+
+void testSubgrid() {
+	bool flag = true;
+
+	Grid<double> a(2, 2);
+	a = 9;
+	a(1, 1) = 98.56;
+	a.make_subgrid(1, 0, 5, 5);
+	Grid<double>& sg_a = a.get_subgrid(1, 0);
+	sg_a = 0;
+	sg_a(0, 0) = 50;
+	if (!a.is_subgrid(1, 0) or sg_a(4, 3) != 0 or sg_a(0, 0) != 50) flag = false;
+
+	a.collapse_subgrid(1, 0);
+	if (a(1, 0) != 2 or a.is_subgrid(1, 0)) flag = false;
+
+	a = 1;
+	a.make_subgrid(1, 0, 5, 5);
+	a.make_subgrid(1, 0, 2, 2);
+	Grid<double>& sg_a_ = a.get_subgrid(1, 0);
+	if (sg_a_(0, 0) != 0 or sg_a_(1, 1) != 0) flag = false;
+
+	SubgridError err;
+	if (!flag) throw err;
+}
+
+
+
 class foo {
 public:
 	void print() {
@@ -241,7 +338,30 @@ public:
 
 int main()
 {
-	Grid<double> my_grid(4, 3);
+	try
+	{
+		testConstructorAndIOS();
+		testCopy();
+		testSubgrid();
+	}
+	catch (ConstructorAndIOSError err)
+	{
+		err.perr();
+	}
+	catch (CopyError err)
+	{
+		err.perr();
+	}
+	catch (SubgridError err)
+	{
+		err.perr();
+	}
+	catch (...)
+	{
+		std::cout << "Something else went wrong\n";
+	}
+
+	/*Grid<double> my_grid(4, 3);
 	std::cout << my_grid;
 	my_grid = 8;
 	my_grid(2, 0) = 123;
@@ -264,7 +384,7 @@ int main()
 	second.make_subgrid(1, 1, 5, 5);
 	second.collapse_subgrid(1, 1);
 
-	std::cout << second.is_subgrid(1, 1) << '\n';
+	std::cout << second.is_subgrid(1, 1) << '\n';*/
 
 	return 0;
 }
