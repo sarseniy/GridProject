@@ -86,6 +86,35 @@ private:
 };
 
 template <typename T>
+class ProxyRef {
+public:
+	ProxyRef(Any& val) : c(val)
+	{}
+
+	operator T& () {
+		return c.as<T>();
+	}
+
+	operator T const& () const {
+		return c.as<T>();
+	}
+
+	ProxyRef& operator=(T const& v) {
+		if (c.contains<T>())
+		{
+			c.as<T>() = v;
+		}
+		else if (c.contains<Grid<T>>())
+		{
+			c.as<Grid<T>>() = v;
+		}
+		return *this;
+	}
+private:
+	Any& c;
+};
+
+template <typename T>
 class Grid {
 public:
 	Grid(size_t x_size, size_t y_size) : x_size(x_size), y_size(y_size) {
@@ -102,6 +131,13 @@ public:
 		{
 			memory[i].replace<T>(ref.memory[i]);
 		}
+	}
+
+	Grid(Grid&& other) : memory{ other.memory }, x_size{ other.x_size }, y_size{ other.x_size }
+	{
+		other.memory = nullptr;
+		other.x_size = 0;
+		other.y_size = 0;
 	}
 
 	~Grid() {
@@ -126,6 +162,25 @@ public:
 		return *this;
 	}
 
+	Grid& operator=(Grid&& other) 
+	{
+		if (*this = other)
+		{
+			return *this;
+		}
+
+		x_size = other.x_size;
+		y_size = other.x_size;
+
+		delete[] memory;
+
+		memory = other.memory;
+		other.memory = nullptr;
+		other.x_size = 0;
+		other.y_size = 0;
+		return *this;
+	}
+
 	T operator()(size_t x_idx, size_t y_idx) const {
 		if (this->is_subgrid(x_idx, y_idx)) {
 			return memory[x_idx * y_size + y_idx].as<Grid<T>>().average();
@@ -133,11 +188,9 @@ public:
 		return memory[x_idx * y_size + y_idx].as<T>();
 	}
 
-	T& operator()(size_t x_idx, size_t y_idx) {
-		if (this->is_subgrid(x_idx, y_idx)) {
-			return memory[0].as<T>(); // UNDEFINED BEHAVIOUR
-		}
-		return memory[x_idx * y_size + y_idx].as<T>();
+	ProxyRef<T> operator()(size_t x_idx, size_t y_idx) {
+		ProxyRef<T> tmp(memory[x_idx * y_size + y_idx]);
+		return tmp;
 	}
 
 	size_t get_xsize() const {
@@ -360,6 +413,12 @@ int main()
 	{
 		std::cout << "Something else went wrong\n";
 	}
+
+	Grid<double> my_grid(2, 2);
+	my_grid = 10;
+	my_grid.make_subgrid(1, 1, 5, 5);
+	my_grid(1, 1) = 123;
+	std::cout << my_grid.get_subgrid(1, 1);
 
 	/*Grid<double> my_grid(4, 3);
 	std::cout << my_grid;
