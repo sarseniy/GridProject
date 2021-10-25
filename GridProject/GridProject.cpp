@@ -129,7 +129,14 @@ public:
 		memory = new Any [x_size * y_size];
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i].replace<T>(ref.memory[i]);
+			if (ref.memory[i].contains<Grid<T>>())
+			{
+				memory[i].replace<Grid<T>>(ref.memory[i]);
+			}
+			else
+			{
+				memory[i].replace<T>(ref.memory[i]);
+			}
 		}
 	}
 
@@ -157,7 +164,14 @@ public:
 		memory = new Any[x_size * y_size];
 		for (size_t i = 0; i < x_size * y_size; i++)
 		{
-			memory[i].replace<T>(ref.memory[i]);
+			if (ref.memory[i].contains<Grid<T>>())
+			{
+				memory[i].replace<Grid<T>>(ref.memory[i]);
+			}
+			else
+			{
+				memory[i].replace<T>(ref.memory[i]);
+			}
 		}
 		return *this;
 	}
@@ -311,6 +325,14 @@ public:
 	}
 };
 
+class CopyWithSugridError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with CopyWithSugrid\n";
+	}
+};
+
 void testConstructorAndIOS() {
 	bool flag = true;
 	Grid<double> a(2, 2);
@@ -376,7 +398,25 @@ void testSubgrid() {
 	if (!flag) throw err;
 }
 
+void testCopyWithSubgrid() {
+	bool flag = true;
 
+	Grid<double> my_grid(2, 2);
+	my_grid = 10;
+	my_grid.make_subgrid(1, 1, 5, 5);
+	my_grid(1, 1) = 123;
+
+	Grid<double> second = my_grid;
+	if (!second.is_subgrid(1, 1) or (second.get_subgrid(1, 1))(0, 0) != 123) flag = false;
+
+	Grid<double> third(3, 3);
+	third = 5;
+	third = second;
+	if (!third.is_subgrid(1, 1) or (third.get_subgrid(1, 1))(0, 0) != 123) flag = false;
+
+	CopyWithSugridError err;
+	if (!flag) throw err;
+}
 
 class foo {
 public:
@@ -396,6 +436,7 @@ int main()
 		testConstructorAndIOS();
 		testCopy();
 		testSubgrid();
+		testCopyWithSubgrid();
 	}
 	catch (ConstructorAndIOSError err)
 	{
@@ -419,6 +460,12 @@ int main()
 	my_grid.make_subgrid(1, 1, 5, 5);
 	my_grid(1, 1) = 123;
 	std::cout << my_grid.get_subgrid(1, 1);
+	std::cout << my_grid;
+
+	Grid<double> second = my_grid;
+	Grid<double> third(3, 3);
+	third = 5;
+	third = second;
 
 	/*Grid<double> my_grid(4, 3);
 	std::cout << my_grid;
