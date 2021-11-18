@@ -2,6 +2,72 @@
 #include <string>
 #include <typeinfo>
 
+
+
+class Error
+{
+public:
+	void virtual perr() = 0;
+};
+
+class ConstructorAndIOSError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with Constructor or IOS\n";
+	}
+};
+
+class CopyError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with Copy\n";
+	}
+};
+
+class SubgridError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with Subgrid\n";
+	}
+};
+
+class CopyWithSugridError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Something wrong with CopyWithSugrid\n";
+	}
+};
+
+class WrongIndexAccessError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Wrong index access detected\n";
+	}
+};
+
+class StreamDeadError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Stream unexpectedly dead\n";
+	}
+};
+
+class NoSubgridDetectedError : public Error
+{
+public:
+	void perr() override {
+		std::cout << "Subgrid operation is called not on Subgrid\n";
+	}
+};
+
+
+
 class Handler {
 public:
 	virtual void* data() = 0;
@@ -140,8 +206,7 @@ public:
 		}
 	}
 
-	Grid(Grid&& other) : memory{ other.memory }, x_size{ other.x_size }, y_size{ other.x_size }
-	{
+	Grid(Grid&& other) : memory(other.memory), x_size(other.x_size), y_size(other.x_size) {
 		other.memory = nullptr;
 		other.x_size = 0;
 		other.y_size = 0;
@@ -178,7 +243,7 @@ public:
 
 	Grid& operator=(Grid&& other) 
 	{
-		if (*this = other)
+		if (this == &other)
 		{
 			return *this;
 		}
@@ -196,6 +261,10 @@ public:
 	}
 
 	T operator()(size_t x_idx, size_t y_idx) const {
+		if (x_idx >= x_size or y_idx >= y_size) {
+			WrongIndexAccessError err;
+			throw(err);
+		}
 		if (this->is_subgrid(x_idx, y_idx)) {
 			return memory[x_idx * y_size + y_idx].as<Grid<T>>().average();
 		}
@@ -203,6 +272,10 @@ public:
 	}
 
 	ProxyRef<T> operator()(size_t x_idx, size_t y_idx) {
+		if (x_idx >= x_size or y_idx >= y_size) {
+			WrongIndexAccessError err;
+			throw(err);
+		}
 		ProxyRef<T> tmp(memory[x_idx * y_size + y_idx]);
 		return tmp;
 	}
@@ -230,6 +303,10 @@ public:
 	}
 
 	Grid& make_subgrid(size_t x_idx, size_t y_idx, size_t x_sub_size, size_t y_sub_size) {
+		if (x_idx >= x_size or y_idx >= y_size) {
+			WrongIndexAccessError err;
+			throw(err);
+		}
 		auto old_val = this->is_subgrid(x_idx, y_idx) ? (T)0 : (*this)(x_idx, y_idx);
 		Grid<T> tmp(x_sub_size, y_sub_size);
 		tmp = old_val;
@@ -238,23 +315,50 @@ public:
 	}
 
 	Grid& collapse_subgrid(size_t x_idx, size_t y_idx) {
+		if (x_idx >= x_size or y_idx >= y_size) {
+			WrongIndexAccessError err;
+			throw(err);
+		}
 		if (!this->is_subgrid(x_idx, y_idx))
 		{
-			return *this;
+			NoSubgridDetectedError err;
+			throw(err);
 		}
 		memory[x_idx * y_size + y_idx].replace<T>(memory[x_idx * y_size + y_idx].as<Grid<T>>().average());
 		return *this;
 	}
 
 	Grid& get_subgrid(size_t x_idx, size_t y_idx) {
+		if (x_idx >= x_size or y_idx >= y_size) {
+			WrongIndexAccessError err;
+			throw(err);
+		}
+		if (!this->is_subgrid(x_idx, y_idx))
+		{
+			NoSubgridDetectedError err;
+			throw(err);
+		}
 		return memory[x_idx * y_size + y_idx].as<Grid<T>>();
 	}
 
 	Grid const& get_subgrid(size_t x_idx, size_t y_idx) const {
+		if (x_idx >= x_size or y_idx >= y_size) {
+			WrongIndexAccessError err;
+			throw(err);
+		}
+		if (!this->is_subgrid(x_idx, y_idx))
+		{
+			NoSubgridDetectedError err;
+			throw(err);
+		}
 		return memory[x_idx * y_size + y_idx].as<Grid<T>>();
 	}
 
 	bool is_subgrid(size_t x_idx, size_t y_idx) const {
+		if (x_idx >= x_size or y_idx >= y_size) {
+			WrongIndexAccessError err;
+			throw(err);
+		}
 		return memory[x_idx * y_size + y_idx].contains<Grid<T>>();
 	}
 
@@ -277,6 +381,10 @@ std::istream& operator>>(std::istream& f, Grid<T>& g) {
 	for (size_t i = 0; i < g.get_xsize() * g.get_ysize(); i++)
 	{
 		f >> g(i / g.get_ysize(), i % g.get_ysize());
+		if (!f.good()) {
+			StreamDeadError err;
+			throw(err);
+		}
 	}
 	return f;
 }
@@ -294,44 +402,6 @@ std::ostream& operator<<(std::ostream& f, Grid<T> const& g) {
 	f << '\n';
 	return f;
 }
-
-class Error
-{
-public:
-	void virtual perr() = 0;
-};
-
-class ConstructorAndIOSError : public Error
-{
-public:
-	void perr() override {
-		std::cout << "Something wrong with Constructor or IOS\n";
-	}
-};
-
-class CopyError : public Error
-{
-public:
-	void perr() override {
-		std::cout << "Something wrong with Copy\n";
-	}
-};
-
-class SubgridError : public Error
-{
-public:
-	void perr() override {
-		std::cout << "Something wrong with Subgrid\n";
-	}
-};
-
-class CopyWithSugridError : public Error
-{
-public:
-	void perr() override {
-		std::cout << "Something wrong with CopyWithSugrid\n";
-	}
-};
 
 void testConstructorAndIOS() {
 	bool flag = true;
@@ -450,12 +520,24 @@ int main()
 	{
 		err.perr();
 	}
+	catch (WrongIndexAccessError err)
+	{
+		err.perr();
+	}
+	catch (StreamDeadError err)
+	{
+		err.perr();
+	}
+	catch (NoSubgridDetectedError err)
+	{
+		err.perr();
+	}
 	catch (...)
 	{
 		std::cout << "Something else went wrong\n";
 	}
 
-	Grid<double> my_grid(2, 2);
+	/*Grid<double> my_grid(2, 2);
 	my_grid = 10;
 	my_grid.make_subgrid(1, 1, 5, 5);
 	my_grid(1, 1) = 123;
@@ -466,7 +548,7 @@ int main()
 	Grid<double> third(3, 3);
 	third = 5;
 	third = second;
-
+	*/
 	/*Grid<double> my_grid(4, 3);
 	std::cout << my_grid;
 	my_grid = 8;
